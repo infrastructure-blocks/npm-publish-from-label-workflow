@@ -17,6 +17,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  status-report-action-repository: infrastructure-blocks/npm-publish-from-label-workflow
+
 jobs:
   # TODO: we should enforce the event type is pull request at the beginning. We can make a an action for that.
   check-event:
@@ -47,13 +50,10 @@ jobs:
         with:
           one-of: no version, patch, minor, major
       - if: ${{ failure() }}
-        uses: infrastructure-blocks/upsert-comment-action@v1
+        uses: infrastructure-blocks/status-report-action@v1
         with:
           body: |
-            [npm-publish-from-label-workflow](https://github.com/infrastructure-blocks/npm-publish-from-label-workflow) Report
-            ---
             :boom: **Error**: expecting exactly one semantic versioning PR label. Please provide one of "no version", "patch", "minor", "major"
-          matches: '^\[npm-publish-from-label-workflow\].*Report'
       - name: Evaluating operation context
         id: context
         shell: bash
@@ -69,13 +69,10 @@ jobs:
           fi
 
       - if: ${{ steps.context.outputs.state == 'no-version' }}
-        uses: infrastructure-blocks/upsert-comment-action@v1
+        uses: infrastructure-blocks/status-report-action@v1
         with:
           body: |
-            [npm-publish-from-label-workflow](https://github.com/infrastructure-blocks/npm-publish-from-label-workflow) Report
-            ---
             :+1:  **Notice**: found "${{ steps.check-labels.outputs.matched-labels }}" label, understood. Won't be publishing NPM package.
-          matches: '^\[npm-publish-from-label-workflow\].*Report'
 
       # Check out and set up the tooling. It's possible we need dev packages to build, so we install them.
       # In prerelease mode, we check out the current branch with the GITHUB_TOKEN.
@@ -115,26 +112,20 @@ jobs:
           prerelease: true
           dist-tags: git-pr-${{ github.event.pull_request.number }},git-sha-${{ github.event.pull_request.head.sha }}
       - if: ${{ failure() && steps.context.outputs.state == 'developing' }}
-        uses: infrastructure-blocks/upsert-comment-action@v1
+        uses: infrastructure-blocks/status-report-action@v1
         with:
           body: |
-            [npm-publish-from-label-workflow](https://github.com/infrastructure-blocks/npm-publish-from-label-workflow) Report
-            ---
             :boom: **Error**: Unable to publish NPM prerelease package with version bump {{ steps.check-labels.outputs.matched-labels }}
             See [action logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }})
-          matches: '^\[npm-publish-from-label-workflow\].*Report'
       - if: ${{ steps.context.outputs.state == 'developing' }}
-        uses: infrastructure-blocks/upsert-comment-action@v1
+        uses: infrastructure-blocks/status-report-action@v1
         with:
           body: |
-            [npm-publish-from-label-workflow](https://github.com/infrastructure-blocks/npm-publish-from-label-workflow) Report
-            ---
             :rocket: **Success**: Successfully published prerelease version!
             
             Packages: 
             - ${{ join(fromJson(steps.npm-publish-prerelease.outputs.links), '
             - ') }}
-          matches: '^\[npm-publish-from-label-workflow\].*Report'
 
       # Release.
       - if: ${{ steps.context.outputs.state == 'releasing' }}
@@ -152,20 +143,15 @@ jobs:
           # Only push the tag we're responsible for.
           git push origin ${{ steps.npm-publish-release.outputs.git-tag }}
       - if: ${{ failure() && steps.context.outputs.state == 'releasing' }}
-        uses: infrastructure-blocks/upsert-comment-action@v1
+        uses: infrastructure-blocks/status-report-action@v1
         with:
           body: |
-            [npm-publish-from-label-workflow](https://github.com/infrastructure-blocks/npm-publish-from-label-workflow) Report
-            ---
             :boom: **Error**: Unable to publish NPM release package with version bump {{ steps.check-labels.outputs.matched-labels }}
             See [action logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }})
-          matches: '^\[npm-publish-from-label-workflow\].*Report'
       - if: ${{ steps.context.outputs.state == 'releasing' }}
-        uses: infrastructure-blocks/upsert-comment-action@v1
+        uses: infrastructure-blocks/status-report-action@v1
         with:
           body: |
-            [npm-publish-from-label-workflow](https://github.com/infrastructure-blocks/npm-publish-from-label-workflow) Report
-            ---
             :rocket: **Success**: Successfully published release version!
             
             Packages: 
@@ -173,4 +159,3 @@ jobs:
             - ') }}
             
             Git tag: [${{ steps.npm-publish-release.outputs.git-tag }}](https://github.com/${{ github.repository }}/releases/tag/${{ steps.npm-publish-release.outputs.git-tag }})
-          matches: '^\[npm-publish-from-label-workflow\].*Report'

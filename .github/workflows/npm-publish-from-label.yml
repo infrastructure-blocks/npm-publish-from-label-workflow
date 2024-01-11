@@ -36,29 +36,27 @@ jobs:
           else
             echo "skip=false" >> "${GITHUB_OUTPUT}"
           fi
+  check-has-semver-label:
+    needs:
+      - check-event
+    if: ${{ needs.check-event.outputs.skip != 'true' }}
+    permissions:
+      pull-requests: write
+    uses: infrastructure-blocks/check-has-semver-label-workflow/.github/workflows/check-has-semver-label.yml@v1
   npm-publish-from-label:
     runs-on: ubuntu-22.04
     needs:
-      - check-event
+      - check-has-semver-label
     if: ${{ needs.check-event.outputs.skip != 'true' }}
     permissions:
       contents: read # Required to check out your project on dev branches
       pull-requests: write # Required to post comments.
     steps:
-      - uses: infrastructure-blocks/check-labels-action@v1
-        id: check-labels
-        with:
-          one-of: no version, patch, minor, major
-      - if: ${{ failure() }}
-        uses: infrastructure-blocks/status-report-action@v1
-        with:
-          body: |
-            :boom: **Error**: expecting exactly one semantic versioning PR label. Please provide one of "no version", "patch", "minor", "major"
       - name: Evaluating operation context
         id: context
         shell: bash
         run: |
-          if [[ "${{ steps.check-labels.outputs.matched-labels }}" == "no version" ]]
+          if [[ "${{ needs.check-has-semver-label.outputs.matched-label }}" == "no version" ]]
           then
             echo "state=no-version" >> "${GITHUB_OUTPUT}"
           elif [[ "${{ github.event.action == 'closed' && github.event.pull_request.merged }}" != "true" ]]
@@ -72,7 +70,7 @@ jobs:
         uses: infrastructure-blocks/status-report-action@v1
         with:
           body: |
-            :+1:  **Notice**: found "${{ steps.check-labels.outputs.matched-labels }}" label, understood. Won't be publishing NPM package.
+            :+1:  **Notice**: found "${{ needs.check-has-semver-label.outputs.matched-label }}" label, understood. Won't be publishing NPM package.
 
       # Check out and set up the tooling. It's possible we need dev packages to build, so we install them.
       # In prerelease mode, we check out the current branch with the GITHUB_TOKEN.
@@ -108,14 +106,14 @@ jobs:
         env:
           NPM_TOKEN: ${{ secrets.npm-token }}
         with:
-          version: ${{ steps.check-labels.outputs.matched-labels }}
+          version: ${{ needs.check-has-semver-label.outputs.matched-label }}
           prerelease: true
           dist-tags: git-pr-${{ github.event.pull_request.number }},git-sha-${{ github.event.pull_request.head.sha }}
       - if: ${{ failure() && steps.context.outputs.state == 'developing' }}
         uses: infrastructure-blocks/status-report-action@v1
         with:
           body: |
-            :boom: **Error**: Unable to publish NPM prerelease package with version bump {{ steps.check-labels.outputs.matched-labels }}
+            :boom: **Error**: Unable to publish NPM prerelease package with version bump {{ needs.check-has-semver-label.outputs.matched-label }}
             See [action logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }})
       - if: ${{ steps.context.outputs.state == 'developing' }}
         uses: infrastructure-blocks/status-report-action@v1
@@ -134,7 +132,7 @@ jobs:
         env:
           NPM_TOKEN: ${{ secrets.npm-token }}
         with:
-          version: ${{ steps.check-labels.outputs.matched-labels }}
+          version: ${{ needs.check-has-semver-label.outputs.matched-label }}
           prerelease: false
           dist-tags: latest,git-sha-${{ github.event.pull_request.head.sha }}
       - if: ${{ steps.context.outputs.state == 'releasing' }}
@@ -146,7 +144,7 @@ jobs:
         uses: infrastructure-blocks/status-report-action@v1
         with:
           body: |
-            :boom: **Error**: Unable to publish NPM release package with version bump {{ steps.check-labels.outputs.matched-labels }}
+            :boom: **Error**: Unable to publish NPM release package with version bump {{ needs.check-has-semver-label.outputs.matched-label }}
             See [action logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ github.job }})
       - if: ${{ steps.context.outputs.state == 'releasing' }}
         uses: infrastructure-blocks/status-report-action@v1

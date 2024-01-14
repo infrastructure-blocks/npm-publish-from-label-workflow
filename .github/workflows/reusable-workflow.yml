@@ -20,7 +20,7 @@ on:
 permissions:
   pull-requests: read
 
-# This is respected and will be applied on concurrent invocation of your reusable workflow.
+# The concurrency of your workflow.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

@@ -99,6 +99,10 @@ only care about the state of the PR of the latest event. Hence, we cancel any on
 | cancel-in-progress |                   true                   |
 
 
+## Timeouts
+
+N/A
+
 ## Usage
 
 ```yaml
@@ -124,7 +128,7 @@ jobs:
       pull-requests: write # Required to post comments.
     env:
       NPM_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
-    uses: infrastructure-blocks/npm-publish-from-label-workflow/.github/workflows/npm-publish-from-label.yml@v1
+    uses: infrastructure-blocks/npm-publish-from-label-workflow/.github/workflows/workflow.yml@v1
     with:  
       secrets:
         github-pat: ${{ secrets.PAT }}

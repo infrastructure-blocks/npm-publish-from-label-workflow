@@ -3,7 +3,7 @@
 This repository is a template for creating reusable GitHub Actions Workflows. Go through the below checklist
 upon instantiating this template:
 - Remove the [trigger update from template workflow](.github/workflows/trigger-update-from-template.yml)
-- Rename and replace the content of [the placeholder](.github/workflows/reusable-workflow.yml) for your reusable workflow.
+- Edit the content of [the placeholder](.github/workflows/workflow.yml) for your reusable workflow.
 - Edit this document and update the relevant sections
 
 ## Inputs
@@ -34,6 +34,10 @@ upon instantiating this template:
 
 Describe concurrency controls of the workflow.
 
+## Timeouts
+
+Describe the timeouts configured, if any.
+
 ## Usage
 
 ```yaml
@@ -48,7 +52,7 @@ permissions:
 
 jobs:
   example-job:
-    uses: infrastructure-blocks/github-actions-workflow-template/.github/workflows/reusable-workflow.yml@v1
+    uses: infrastructure-blocks/github-actions-workflow-template/.github/workflows/workflow.yml@v1
     with:
       example-input: Nobody cares
     secrets:

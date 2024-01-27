@@ -61,6 +61,7 @@ jobs:
     uses: infrastructure-blocks/check-has-semver-label-workflow/.github/workflows/workflow.yml@v1
     with:
       pull-request: ${{ needs.get-current-pr.outputs.pull-request }}
+
   # Release workflow.
   npm-publish-release:
     needs:
@@ -82,18 +83,12 @@ jobs:
       - get-current-pr
       - check-has-semver-label
       - npm-publish-release
-    if: ${{ !cancelled() && needs.check-has-semver-label.outputs.matched-label != 'no version' }}
+    if: ${{ needs.npm-publish-release.result == 'success' || needs.npm-publish-release.result == 'failure' }}
     permissions:
       pull-requests: write
     steps:
-      - if: ${{ failure() }}
+      - if: ${{ needs.npm-publish-release.result == 'success' }}
         uses: infrastructure-blocks/status-report-action@v1
-        with:
-          issue-number: ${{ fromJson(needs.get-current-pr.outputs.pull-request).number }}
-          body: |
-            :boom: **Error**: Unable to publish NPM release package with version bump {{ needs.check-has-semver-label.outputs.matched-label }}
-            See [action logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      - uses: infrastructure-blocks/status-report-action@v1
         with:
           issue-number: ${{ fromJson(needs.get-current-pr.outputs.pull-request).number }}
           body: |
@@ -102,8 +97,16 @@ jobs:
             Packages:
             - ${{ join(fromJson(needs.npm-publish-release.outputs.links), '
             - ') }}
-            
+
             Git tag: [${{ needs.npm-publish-release.outputs.git-tag }}](https://github.com/${{ github.repository }}/releases/tag/${{ needs.npm-publish-release.outputs.git-tag }})
+      - if: ${{ needs.npm-publish-release.result == 'failure' }}
+        uses: infrastructure-blocks/status-report-action@v1
+        with:
+          issue-number: ${{ fromJson(needs.get-current-pr.outputs.pull-request).number }}
+          body: |
+            :boom: **Error**: Unable to publish NPM release package with version bump {{ needs.check-has-semver-label.outputs.matched-label }}
+            See [action logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
   # Prerelease workflow.
   npm-publish-prerelease:
     needs:
@@ -124,18 +127,12 @@ jobs:
       - get-current-pr
       - check-has-semver-label
       - npm-publish-prerelease
-    if: ${{ !cancelled() && inputs.prerelease && needs.check-has-semver-label.outputs.matched-label != 'no version' }}
+    if: ${{ needs.npm-publish-prerelease.result == 'success' || needs.npm-publish-prerelease.result == 'failure' }}
     permissions:
       pull-requests: write
     steps:
-      - if: ${{ failure() }}
+      - if: ${{ needs.npm-publish-prerelease.result == 'success' }}
         uses: infrastructure-blocks/status-report-action@v1
-        with:
-          issue-number: ${{ fromJson(needs.get-current-pr.outputs.pull-request).number }}
-          body: |
-            :boom: **Error**: Unable to publish NPM prerelease package with version bump {{ needs.check-has-semver-label.outputs.matched-label }}
-            See [action logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      - uses: infrastructure-blocks/status-report-action@v1
         with:
           issue-number: ${{ fromJson(needs.get-current-pr.outputs.pull-request).number }}
           body: |
@@ -144,3 +141,10 @@ jobs:
             Packages:
             - ${{ join(fromJson(needs.npm-publish-prerelease.outputs.links), '
             - ') }}
+      - if: ${{ needs.npm-publish-prerelease.result == 'failure' }}
+        uses: infrastructure-blocks/status-report-action@v1
+        with:
+          issue-number: ${{ fromJson(needs.get-current-pr.outputs.pull-request).number }}
+          body: |
+            :boom: **Error**: Unable to publish NPM prerelease package with version bump {{ needs.check-has-semver-label.outputs.matched-label }}
+            See [action logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}

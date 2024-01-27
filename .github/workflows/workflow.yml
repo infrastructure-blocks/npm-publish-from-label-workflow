@@ -65,6 +65,7 @@ jobs:
   # Release workflow.
   npm-publish-release:
     needs:
+      - get-current-pr
       - check-has-semver-label
     if: ${{ !inputs.prerelease && needs.check-has-semver-label.outputs.matched-label != 'no version' }}
     uses: infrastructure-blocks/npm-publish-workflow/.github/workflows/workflow.yml@v1

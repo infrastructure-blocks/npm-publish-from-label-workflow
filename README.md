@@ -1,81 +1,36 @@
 # npm-publish-from-label-workflow
 
-This action publishes npm packages based on PR labels. It is meant to be run only on pull_request events
-and the full recommended list of event types are listed in the [usage](#usage) section.
+This workflow publishes npm packages based on PR labels. It can be run any events, although some default values
+for inputs only make sense on certain events. See the [usage](#usage) section for recommended set ups.
 
-The action first looks for and verifies that the PR has exactly one of the following labels:
-- `no version`
-- `patch`
-- `minor`
-- `major`
+It starts by retrieving the PR associated with the SHA input. It then delegates to
+[check-has-semver-label-workflow](https://github.com/infrastructure-blocks/check-has-semver-label-workflow). If the
+PR check succeeds and the label associated to the PR is different than "no version", then the following occurs:
+- The workflow dispatches to
+[npm-publish-prerelease-workflow](https://github.com/infrastructure-blocks/npm-publish-prerelease-workflow) if 
+`prerelease` is set to true
+  - The distribution tags used are `git-sha-<input-sha>` and `gh-pr-<current-pr-number>`
+- The workflow dispatches to [npm-publish-workflow](https://github.com/infrastructure-blocks/npm-publish-workflow) if
+`prerelease` is set to true
+  - The distribution tags used are `latest`, `git-sha-<input-sha>` and `gh-pr-<current-pr-number>`
 
-In the event it doesn't find one, the action fails. When "no version" is specified, this action won't do anything
-beyond checking labels.
-
-It uses [npm-publish-action](https://github.com/infrastructure-blocks/npm-publish-action) to publish the package. Because reusable workflows have some differences to GitHub
-actions, such as the inability to pass environment variables from the calling workflow, this workflow takes some
-opinionated stances. For example, it *requires* that the library's `.npmrc` uses the NPM_TOKEN environment variable
-as an authentication token. Refer to the `npm-publish-action` documentation to understand how to set up the package
-settings.
-
-What the action does depends on the event received from GitHub. When we are processing anything but a merge event,
-then we run in prerelease mode. We run in release mode otherwise.
-
-## Prerelease (not merging)
-In prerelease mode, the `version` parameter is transformed into its corresponding prerelease equivalent:
-- patch => prepatch
-- minor => preminor
-- major => premajor
-
-The action then runs `npm version <prerelease-version>` with `--no-git-tag-version`. The design decision of not writing
-commits and pushing commits was made in other to be the least intrusive to developers workflow as possible.
-
-Running the prerelease version command will give use the prerelease lineage of the package. For example, the version
-`1.2.3-beta.5` has the lineage `1.2.3-beta.<n>`, where `n` is the prerelease number.
-
-If the lineage doesn't exist on the registry, then the action will publish it with a prerelease number of 0.
-
-If the lineage does exist, then the action will scan the existing packages and find the latest of the lineage. It
-will then increment its prerelease number by 1 and publish the resulting version.
-
-In addition to publishing the package version, this action also associates a couple of dist tags to it:
-- `gh-pr-<pr-number>`
-- `git-sha-<git-sha>` (${{ github.event.pull_request.head.sha }})
-
-It **does not** update the `latest` tag, on purpose.
-
-## Release (merge event)
-In release mode, the value of the PR label is kept as is. So, the `major` label will result in the action calling
-`npm version major`. This time, we do generate a commit and a git tag, both of which are pushed at the end of the flow.
-
-Because we are pushing commits to what we expect to be a protected branch, we allow the usage of specific GitHub tokens
-through inputs. In the event that we are pushing against a protected branch, this needs to be a GitHub [PAT](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens).
-
-In the name of laziness, we leverage the [actions/checkout](https://github.com/actions/checkout) action with the provided token to set up the credentials
-for authenticated git commands moving forward. You should know this if you expect no side effects after using
-this action.
-
-The resulting package is tagged with dist tags `latest` and `git-sha-<git-sha>` (the SHA of the base HEAD commit).
-
-## Reporting
-Failures are reported as PR comments. Failures include: missing PR label, unable to publish packages for some reason.
-
-Successes are also reported as PR comments. They include the package version & dist tags published with
-links in their registry.
-
-## Notes
-- This action has only been tested on the npmjs registry.
+The outcome of the release is reported as a
+[status report](https://github.com/infrastructure-blocks/status-report-action).
 
 ## Inputs
 
-N/A
+|    Name    | Required | Description                                                                                                                                                                                                                                                                                                                               |
+|:----------:|:--------:|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|    sha     |  false   | The commit SHA to tag. Defaults to the ${{ github.sha }}. If the event triggering this workflow is of type pull_request, be sure to set this parameter to either ${{ github.event.pull_request.head.sha }} or ${{ github.event.pull_request.base.sha }}. You probably don't want to tag the PR's default SHA, which is on a merge branch. |
+| prerelease |  false   | Whether the label is to be interpreted as a prerelease or a full release. Defaults to false.                                                                                                                                                                                                                                              |
+|  skip-ci   |  false   | Whether to include `[skip ci]` in the commit created by `npm version` when `prerelease` is false. This is especially useful if using this workflow on a push event with a GitHub PAT, for example. Defaults to false.                                                                                                                     |
 
 ## Secrets
 
-|    Name    | Required | Description                                                                                         |
-|:----------:|:--------:|-----------------------------------------------------------------------------------------------------|
-| github-pat |   true   | The personal access token used to push the commit generated by `npm version` on the release branch. |
-| npm-token  |   true   | The NPM token used to publish the packages.                                                         |
+|     Name     | Required | Description                                                                                                                                                       |
+|:------------:|:--------:|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| github-token |   true   | The GitHub token used to configure the Git CLI. It should have the rights to push code and tags. When the branch or the tags are protected, this should be a PAT. |
+|  npm-token   |   true   | The NPM token used to publish the package.                                                                                                                        |
 
 ## Outputs
 
@@ -83,21 +38,14 @@ N/A
 
 ## Permissions
 
-|     Scope     | Level | Reason                                                       |
-|:-------------:|:-----:|--------------------------------------------------------------|
-|   contents    | read  | Required to checkout your code.                              |
-| pull-requests | write | Required to post comments about the status of this workflow. |
+|     Scope     | Level | Reason                                                                                                   |
+|:-------------:|:-----:|----------------------------------------------------------------------------------------------------------|
+|   contents    | write | Required to push code when `prerelease` is false and the `github-token` provided is ${{ github.token }}. |
+| pull-requests | write | Required to post comments about the status of this workflow.                                             |
 
 ## Concurrency controls
 
-Because this workflow is meant to be called on several different types of pull_request events, we mostly
-only care about the state of the PR of the latest event. Hence, we cancel any ongoing workflow.
-
-|       Field        |                  Value                   |
-|:------------------:|:----------------------------------------:|
-|       group        | ${{ github.workflow }}-${{ github.ref }} |
-| cancel-in-progress |                   true                   |
-
+N/A
 
 ## Timeouts
 
@@ -105,33 +53,56 @@ N/A
 
 ## Usage
 
+### Prerelease
+
 ```yaml
-name: NPM Publish From Label
+name: NPM Publish Prerelease From Label
 
 on:
-  branches:
-    - <your-release-branch>
   pull_request:
     types:
-      # Having all these events ensures there is always a PR label.
       - opened
       - reopened
       - synchronize
       - labeled
       - unlabeled
-      - closed
 
 jobs:
-  npm-publish-from-label:
+  npm-publish-prerelease:
+    uses: infrastructure-blocks/npm-publish-from-label-workflow/.github/workflows/workflow.yml@v2
     permissions:
-      contents: read # Required to check out your project.
-      pull-requests: write # Required to post comments.
-    env:
-      NPM_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
-    uses: infrastructure-blocks/npm-publish-from-label-workflow/.github/workflows/workflow.yml@v1
-    with:  
-      secrets:
-        github-pat: ${{ secrets.PAT }}
+      contents: write
+      pull-requests: write
+    with:
+      sha: ${{ github.event.pull_request.head.sha }}
+      prerelease: true
+    secrets:
+      # Should use the default token here, since we are not pushing anything.
+      github-token: ${{ github.token }}
+      npm-token: ${{ secrets.NPM_PUBLISH_TOKEN }}
+```
+
+### Release
+
+```yaml
+name: NPM Publish Release From Label
+
+on:
+  push:
+    branches:
+      - <you-release-branch>
+
+jobs:
+  npm-publish-release:
+    uses: infrastructure-blocks/npm-publish-from-label-workflow/.github/workflows/workflow.yml@v2
+    permissions:
+      contents: write
+      pull-requests: write
+    with:
+      skip-ci: true
+    secrets:
+      github-token: ${{ secrets.PAT }}
+      npm-token: ${{ secrets.NPM_PUBLISH_TOKEN }}
 ```
 
 ### Releasing

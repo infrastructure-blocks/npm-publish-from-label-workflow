@@ -80,8 +80,9 @@ jobs:
     runs-on: ubuntu-22.04
     needs:
       - get-current-pr
+      - check-has-semver-label
       - npm-publish-release
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && needs.check-has-semver-label.outputs.matched-label != 'no version' }}
     permissions:
       pull-requests: write
     steps:
@@ -121,8 +122,9 @@ jobs:
     runs-on: ubuntu-22.04
     needs:
       - get-current-pr
+      - check-has-semver-label
       - npm-publish-prerelease
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && inputs.prerelease && needs.check-has-semver-label.outputs.matched-label != 'no version' }}
     permissions:
       pull-requests: write
     steps:

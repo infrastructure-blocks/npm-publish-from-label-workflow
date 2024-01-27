@@ -69,7 +69,7 @@ on:
 
 jobs:
   npm-publish-prerelease:
-    uses: infrastructure-blocks/npm-publish-from-label-workflow/.github/workflows/workflow.yml@v2
+    uses: infrastructure-blocks/npm-publish-from-label-workflow/.github/workflows/workflow.yml@v3
     permissions:
       contents: write
       pull-requests: write
@@ -94,7 +94,7 @@ on:
 
 jobs:
   npm-publish-release:
-    uses: infrastructure-blocks/npm-publish-from-label-workflow/.github/workflows/workflow.yml@v2
+    uses: infrastructure-blocks/npm-publish-from-label-workflow/.github/workflows/workflow.yml@v3
     permissions:
       contents: write
       pull-requests: write

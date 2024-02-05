@@ -1,4 +1,6 @@
 # npm-publish-from-label-workflow
+[![Git Tag Semver From Label](https://github.com/infrastructure-blocks/npm-publish-from-label-workflow/actions/workflows/git-tag-semver-from-label.yml/badge.svg)](https://github.com/infrastructure-blocks/npm-publish-from-label-workflow/actions/workflows/git-tag-semver-from-label.yml)
+[![Update From Template](https://github.com/infrastructure-blocks/npm-publish-from-label-workflow/actions/workflows/update-from-template.yml/badge.svg)](https://github.com/infrastructure-blocks/npm-publish-from-label-workflow/actions/workflows/update-from-template.yml)
 
 This workflow publishes npm packages based on PR labels. It can be run any events, although some default values
 for inputs only make sense on certain events. See the [usage](#usage) section for recommended set ups.

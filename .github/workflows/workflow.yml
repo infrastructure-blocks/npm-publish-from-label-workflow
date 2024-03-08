@@ -37,7 +37,6 @@ env:
   status-report-action-repository: infrastructure-blocks/npm-publish-from-label-workflow
 
 jobs:
-  # TODO: this as workflow. Can reuse it in git-tag-semver-from-label-workflow as well.
   get-current-pr:
     runs-on: ubuntu-22.04
     permissions:
@@ -46,13 +45,15 @@ jobs:
       pull-request: ${{ steps.get-current-pr.outputs.pr }}
     steps:
       - id: get-current-pr
-        uses: 8BitJonny/gh-get-current-pr@2.2.0
+        uses: infrastructure-blocks/get-current-pull-request-action@v1
         with:
           sha: ${{ inputs.sha }}
       - if: ${{ steps.get-current-pr.outputs.pr_found == 'false' }}
         run: |
           echo "::error::no matching PR found!"
           exit 1
+  # TODO: This to default to current-pr. Will allow to get rid of previous workflow. Same can be applied to
+  # git-tag-semver-from-label-workflow as well.
   check-has-semver-label:
     needs:
       - get-current-pr
